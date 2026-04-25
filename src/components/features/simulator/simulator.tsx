@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Node,
   Edge,
@@ -67,6 +67,13 @@ export default function Simulator() {
     stopSimulation,
     handleReset,
   } = simulation;
+
+  // Switch to report tab when simulation starts
+  useEffect(() => {
+    if (isRunning) {
+      setRightTab('report');
+    }
+  }, [isRunning, setRightTab]);
 
   // Custom Hooks - Selection & Events
   const selection = useSelection(nodes, reactFlowRef);
