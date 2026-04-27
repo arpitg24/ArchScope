@@ -26,6 +26,18 @@ export default function SimulatorHeader({ selectedNodesCount, loadPreset, handle
   const [isDesignsOpen, setIsDesignsOpen] = React.useState(false);
   const [designs, setDesigns] = React.useState<any[]>([]);
 
+  // Add/remove class on body when menu is open to dim scrollbars
+  React.useEffect(() => {
+    if (isMenuOpen) {
+      document.body.classList.add('menu-overlay-open');
+    } else {
+      document.body.classList.remove('menu-overlay-open');
+    }
+    return () => {
+      document.body.classList.remove('menu-overlay-open');
+    };
+  }, [isMenuOpen]);
+
   return (
     <div className="h-12 border-b bg-white flex items-center justify-between px-4 shrink-0 z-10 relative">
 
