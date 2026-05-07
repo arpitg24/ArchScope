@@ -39,7 +39,7 @@ export default function SimulatorHeader({ selectedNodesCount, loadPreset, handle
   }, [isMenuOpen]);
 
   return (
-    <div className="h-12 border-b bg-white flex items-center justify-between px-4 shrink-0 z-10 relative">
+    <div className="h-14 border-b bg-white flex items-center justify-between px-4 shrink-0 z-10 relative">
 
       {/* LEFT SECTION */}
       <div className="flex items-center gap-3">
@@ -66,13 +66,10 @@ export default function SimulatorHeader({ selectedNodesCount, loadPreset, handle
 
       {/* CENTER (ABSOLUTE) */}
       {/* This stays perfectly centered regardless of left/right */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
         <Network className="w-5 h-5 text-gray-900" />
         <div className="group cursor-pointer px-2 py-1 rounded-lg hover:bg-purple-500/10 hover:border-purple-300 border border-transparent transition-colors">
-          <h1 className="text-xl font-bold tracking-tight bg-linear-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-1">
-            ArchScope
-            <span className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 text-gray-500">
-            </span>
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900">Arch<span className="text-cyan-600">Scope</span>
           </h1>
         </div>
       </div>
@@ -84,13 +81,9 @@ export default function SimulatorHeader({ selectedNodesCount, loadPreset, handle
         <Link href="/guide">
           <Button
             size="sm"
-            // className="gap-2 
-            // bg-teal-500/20 text-teal-800 border border-teal-200
-            // hover:bg-teal-500/10 hover:border-teal-400
-            // font-medium transition-all duration-200"
             className="bg-purple-500/20 text-purple-800 border border-purple-200 
             hover:bg-purple-500/10 hover:border-purple-400
-            transition-all duration-200"
+            font-medium transition-all duration-200"
           >
             <BookOpen className="w-3 h-3" />
             Get Started

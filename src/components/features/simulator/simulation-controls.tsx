@@ -18,6 +18,7 @@ interface SimulationControlsProps {
   isRunning: boolean;
   hasResults: boolean;
   simProgress: { elapsed: number; total: number } | null;
+  selectedDesignName: string | null;
 }
 
 function LoadPreviewChart({ params, totalRps }: { params: SimulationParams; totalRps: number }) {
@@ -86,6 +87,7 @@ export default function SimulationControls({
   isRunning,
   hasResults,
   simProgress,
+  selectedDesignName
 }: SimulationControlsProps) {
   const totalRps = Math.round(
     params.concurrentUsers * params.requestsPerSecPerUser
@@ -315,45 +317,6 @@ export default function SimulationControls({
           </div>
         </div>
       )}
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        {!isRunning ? (
-          <Button
-            onClick={onRun}
-            className="flex-1 gap-2 
-            bg-green-500/20 text-green-800 border border-green-200
-            hover:bg-green-500/10 hover:border-green-400
-            transition-all duration-200"
-            size="sm"
-          >
-            <Play className="w-3 h-3" />
-            Run Simulation
-          </Button>
-        ) : (
-          <Button
-            onClick={onStop}
-            className="flex-1 gap-2 
-            bg-red-500/20 text-red-800 border border-red-200
-            hover:bg-red-500/10 hover:border-red-400
-            transition-all duration-200"
-            size="sm"
-          >
-            <Square className="w-3 h-3" />
-            Stop
-          </Button>
-        )}
-        <Button
-          size="sm"
-          onClick={onReset}
-          className="gap-2 
-          bg-yellow-500/20 text-yellow-500 border border-yellow-200
-          hover:bg-yellow-500/10 hover:border-yellow-400
-          transition-all duration-200"
-        >
-          <RotateCcw className="w-3 h-3" />
-        </Button>
-      </div>
     </div>
   );
 }
