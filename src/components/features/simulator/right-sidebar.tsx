@@ -42,22 +42,24 @@ export default function RightSidebar({
   return (
     <div className="border-l bg-white flex flex-col flex-shrink-0" style={{ width: rightPanelSize }}>
       <Tabs value={rightTab} onValueChange={(val) => setRightTab(val as string)} className="flex flex-col h-full">
-        <TabsList className="flex-shrink-0 m-2 grid grid-cols-3 w-full">
-          <TabsTrigger value="components" className="text-xs gap-1">
-            <LayoutGrid className="w-3 h-3" />
-            Add
-          </TabsTrigger>
-          <TabsTrigger value="config" className="text-xs gap-1">
-            <Settings2 className="w-3 h-3" />
-            Config
-          </TabsTrigger>
-          <TabsTrigger value="report" className="text-xs gap-1">
-            <BarChart3 className="w-3 h-3" />
-            Report
-          </TabsTrigger>
-        </TabsList>
+        <div className="h-12 border-b bg-white flex items-center px-4">
+          <TabsList className="grid grid-cols-3 w-full h-8">
+            <TabsTrigger value="components" className="text-xs gap-1">
+              <LayoutGrid className="w-3 h-3" />
+              Add
+            </TabsTrigger>
+            <TabsTrigger value="config" className="text-xs gap-1">
+              <Settings2 className="w-3 h-3" />
+              Config
+            </TabsTrigger>
+            <TabsTrigger value="report" className="text-xs gap-1">
+              <BarChart3 className="w-3 h-3" />
+              Report
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="components" className="flex-1 min-h-0 m-0 bg-gray-50">
+        <TabsContent value="components" className="flex-1 min-h-0 m-0 bg-white">
           <div className="h-full overflow-y-auto">
             <ComponentPalette onAddComponent={addComponent} />
           </div>
