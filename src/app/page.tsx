@@ -1,10 +1,5 @@
-import Simulator from "@/components/features/simulator/simulator";
-import MobileDetect from "@/components/common/mobile-detect";
+import LandingPage from "@/components/features/simulator/landing-page";
 
 export default function Home() {
-  return (
-    <MobileDetect>
-      <Simulator />
-    </MobileDetect>
-  );
+  return <LandingPage />;
 }
