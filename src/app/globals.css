@@ -156,4 +156,23 @@
   body.menu-overlay-open .cursor-col-resize .group-hover\:opacity-100 {
     opacity: 0 !important;
   }
+
+  /* Hide scrollbar globally but keep scrolling */
+  html,
+  body {
+    overflow-y: scroll;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE + Edge */
+  }
+
+  body::-webkit-scrollbar,
+  html::-webkit-scrollbar {
+    width: 0 !important;
+    display: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
