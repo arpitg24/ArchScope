@@ -12,7 +12,6 @@ import {
   Brain,
   Rocket,
   Code2,
-  Home,
   Mail
 } from 'lucide-react';
 
@@ -59,27 +58,19 @@ export default function AboutPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">
-              Why ArchScope Exists
+              Why We Built ArchScope
             </CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-4 text-gray-700 leading-7">
             <p>
-              Modern distributed systems are incredibly difficult to reason about.
-              Designing scalable architectures usually happens on whiteboards,
-              static diagrams, or expensive production environments.
-            </p>
-
-            <p>
-              ArchScope was built to make architecture interactive.
-              Instead of just drawing systems, you can simulate them,
-              experiment with them, and understand how different
-              infrastructure decisions affect performance and behavior.
-            </p>
-
-            <p>
-              The goal is simple:
-              make system design visual, educational, and exploratory.
+              Modern distributed systems are complex. Learning system design
+              often means reading articles or drawing diagrams that never
+              come to life.
+              <br />
+              We built ArchScope to change that - a place where you can
+              <strong> design, simulate, and understand</strong> architectures
+              interactively before deploying to production.
             </p>
           </CardContent>
         </Card>
@@ -137,61 +128,13 @@ export default function AboutPage() {
 
           <CardContent className="space-y-4 text-gray-700 leading-7">
             <p>
-              ArchScope is heavily inspired by the belief that
-              architecture should be learned through experimentation.
+              Architecture should be learned through experimentation,
+              not just reading. Interacting with systems creates
+              much deeper intuition than studying diagrams.
+              We focus on visual learning, systems thinking,
+              and rapid experimentation to make distributed
+              systems concepts accessible to everyone.
             </p>
-
-            <p>
-              Reading about distributed systems is valuable,
-              but interacting with them creates much deeper intuition.
-            </p>
-
-            <p>
-              The platform focuses on:
-            </p>
-
-            <ul className="list-disc pl-6 space-y-2">
-              <li>Visual learning</li>
-              <li>Systems thinking</li>
-              <li>Rapid experimentation</li>
-              <li>Infrastructure intuition</li>
-              <li>Interactive simulation</li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* TECH */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Code2 className="w-5 h-5 text-orange-600" />
-
-              <CardTitle>
-                Built With
-              </CardTitle>
-            </div>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-
-              {[
-                'Next.js',
-                'React',
-                'TypeScript',
-                'Tailwind CSS',
-                'React Flow',
-                'Prisma',
-              ].map((tech) => (
-                <div
-                  key={tech}
-                  className="px-4 py-3 rounded-lg border bg-white text-sm font-medium text-gray-700"
-                >
-                  {tech}
-                </div>
-              ))}
-
-            </div>
           </CardContent>
         </Card>
 
@@ -199,7 +142,7 @@ export default function AboutPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Created By
+              Moderators
             </CardTitle>
           </CardHeader>
 
@@ -220,6 +163,16 @@ export default function AboutPage() {
                     >
                       <Mail className="w-4 h-4" />
                     </a>
+                    <a
+                      href="https://www.linkedin.com/in/arpit-godghate-3870b61b7/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-cyan-600 transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                    </a>
                   </div>
 
                   <div className="text-sm text-cyan-700 font-medium">
@@ -227,8 +180,7 @@ export default function AboutPage() {
                   </div>
 
                   <p className="text-sm text-gray-600 leading-6 pt-2">
-                    Focused on building interactive tools for understanding
-                    distributed systems and infrastructure behavior visually.
+                    Built core simulator engine, multi-selection system, mobile responsiveness, and advanced analytics features including latency breakdown and fast-forward simulation
                   </p>
                 </div>
               </div>
@@ -247,19 +199,59 @@ export default function AboutPage() {
                     >
                       <Mail className="w-4 h-4" />
                     </a>
+                    <a
+                      href="https://www.linkedin.com/in/sneha-wasankar-a6a29b1a3/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-cyan-600 transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                    </a>
                   </div>
 
                   <div className="text-sm text-purple-700 font-medium">
-                    Engineering • Architecture • Experience Design
+                    Product Engineering • UI/UX • Security
                   </div>
 
                   <p className="text-sm text-gray-600 leading-6 pt-2">
-                    Passionate about creating intuitive developer experiences
-                    and simplifying complex architectural concepts.
+                    Led UI/UX development along with core business flows such as profile management, routing, design save/restore, and authentication.
                   </p>
                 </div>
               </div>
 
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* OPEN SOURCE */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Code2 className="w-6 h-6 text-orange-600" />
+              <CardTitle>
+                Open Source & Contributors
+              </CardTitle>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4 text-gray-700 leading-7">
+            <p>
+              ArchScope is open source and built independently. We believe
+              in the power of community to make tools like this better.
+              <br />
+              If you're interested in contributing - whether it's adding new
+              infrastructure components, improving simulation logic, or
+              enhancing the UI - we'd love to have you.
+            </p>
+
+            <div className="pt-2">
+              <Link href="https://github.com/arpitg24/ArchScope" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="btn-cyan-variant">
+                  View on GitHub
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
