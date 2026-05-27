@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -17,6 +18,17 @@ export default function SaveModal({
   onSaveAsNew,
   hasExisting,
 }: Props) {
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('menu-overlay-open');
+    } else {
+      document.body.classList.remove('menu-overlay-open');
+    }
+    return () => {
+      document.body.classList.remove('menu-overlay-open');
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
