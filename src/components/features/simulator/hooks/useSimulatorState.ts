@@ -86,13 +86,22 @@ export function useSimulatorState() {
   const addComponent = useCallback(
     (type: ComponentType, position?: { x: number; y: number }) => {
       const id = `node_${++nodeIdCounter}_${Date.now()}`;
+
+      let resolvedPosition = position;
+      if (!resolvedPosition && reactFlowRef.current) {
+        const rect = document.querySelector('.react-flow__renderer')?.getBoundingClientRect();
+        const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+        const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+        resolvedPosition = reactFlowRef.current.screenToFlowPosition({
+          x: cx + (Math.random() - 0.5) * 80,
+          y: cy + (nodes.length % 5) * 20,
+        });
+      }
+
       const newNode: Node<SimulationNodeData> = {
         id,
         type: 'infra',
-        position: position || {
-          x: 250 + Math.random() * 200,
-          y: 100 + nodes.length * 120,
-        },
+        position: resolvedPosition ?? { x: 250 + Math.random() * 200, y: 100 + nodes.length * 120 },
         data: {
           label: COMPONENT_LABELS[type],
           componentType: type,
