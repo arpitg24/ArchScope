@@ -8,7 +8,7 @@ import { useAuth } from '@/context/auth';
 
 export default function AuthModal() {
     const { isOpen, closeAuth, login } = useAuth();
-    const [mode, setMode] = useState<'login' | 'register'>('login');
+    const [mode, setMode] = useState<'login' | 'register' | 'forgot-password'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [username, setUsername] = useState('');
@@ -32,6 +32,12 @@ export default function AuthModal() {
             return;
         }
 
+        if (mode === 'forgot-password') {
+            alert(data.message);
+            setMode('login');
+            return;
+        }
+
         if (data.token && data.user) {
             login(data.user, data.token);
         }
@@ -43,7 +49,7 @@ export default function AuthModal() {
         <Dialog open={isOpen} onOpenChange={closeAuth}>
             <DialogContent className="space-y-4">
                 <h2 className="text-lg font-semibold">
-                    {mode === 'login' ? 'Login' : 'Register'}
+                    {mode === 'login' ? 'Login' : mode === 'register' ? 'Register' : 'Reset Password'}
                 </h2>
 
                 <Input
@@ -52,12 +58,14 @@ export default function AuthModal() {
                     onChange={(e) => setEmail(e.target.value)}
                 />
 
-                <Input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                {mode !== 'forgot-password' && (
+                    <Input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                )}
 
                 {mode === 'register' && (
                     <Input
@@ -67,19 +75,40 @@ export default function AuthModal() {
                     />
                 )}
 
+                {mode === 'login' && (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setMode('forgot-password')}
+                            className="text-sm text-blue-600 hover:underline"
+                        >
+                            Forgot Password?
+                        </button>
+                    </div>
+                )}
+
                 <Button onClick={handleSubmit} className="w-full">
-                    {mode === 'login' ? 'Login' : 'Register'}
+                    {mode === 'login' ? 'Login' : mode === 'register' ? 'Register' : 'Send Reset Link'}
                 </Button>
 
-                <Button
-                    variant="ghost"
-                    onClick={() =>
-                        setMode(mode === 'login' ? 'register' : 'login')
-                    }
-                    className="w-full"
-                >
-                    Switch to {mode === 'login' ? 'Register' : 'Login'}
-                </Button>
+                {mode !== 'forgot-password' ? (
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            setMode(mode === 'login' ? 'register' : 'login')
+                        }
+                        className="w-full"
+                    >
+                        Switch to {mode === 'login' ? 'Register' : 'Login'}
+                    </Button>
+                ) : (
+                    <Button
+                        variant="ghost"
+                        onClick={() => setMode('login')}
+                        className="w-full"
+                    >
+                        Back to Login
+                    </Button>
+                )}
             </DialogContent>
         </Dialog>
     );

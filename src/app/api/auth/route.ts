@@ -1,4 +1,4 @@
-import { login, register } from '@/backend/controllers/auth';
+import { login, register, forgotPassword, resetPassword } from '@/backend/controllers/auth';
 
 export async function POST(req: Request) {
     const body = await req.json();
@@ -15,6 +15,14 @@ export async function POST(req: Request) {
 
     if (action === 'register') {
         return register(data);
+    }
+    
+    if (action === 'forgot-password') {
+        return forgotPassword(data);
+    }
+    
+    if (action === 'reset-password') {
+        return resetPassword(data);
     }
 
     return Response.json({ error: 'Invalid action' }, { status: 400 });
