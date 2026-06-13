@@ -279,6 +279,8 @@ export default function Simulator() {
             onSave={() => setIsSaveModalOpen(true)}
             onReset={handleResetCanvas}
             selectedDesignName={currentDesignName}
+            onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+            isTerminalOpen={isTerminalOpen}
           />
 
           {/* CANVAS */}
@@ -302,8 +304,6 @@ export default function Simulator() {
             selectionBox={selectionBox}
             isMinimapCollapsed={isMinimapCollapsed}
             setIsMinimapCollapsed={setIsMinimapCollapsed}
-            onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
-            isTerminalOpen={isTerminalOpen}
           />
           
           {/* TERMINAL PANEL */}
