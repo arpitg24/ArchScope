@@ -16,7 +16,7 @@ import '@xyflow/react/dist/style.css';
 
 import { SimulationNodeData } from '@/types';
 import { COMPONENT_COLORS } from '@/lib/services';
-import { Boxes, Minus, Map } from 'lucide-react';
+import { Boxes, Minus, Map, Terminal } from 'lucide-react';
 import SelectionBox from '@/components/features/architecture/selection-box';
 import { nodeTypes } from './constants';
 
@@ -40,6 +40,8 @@ interface DiagramCanvasProps {
   selectionBox: { startX: number; startY: number; endX: number; endY: number } | null;
   isMinimapCollapsed: boolean;
   setIsMinimapCollapsed: (collapsed: boolean) => void;
+  onToggleTerminal: () => void;
+  isTerminalOpen: boolean;
 }
 
 export default function DiagramCanvas({
@@ -61,7 +63,9 @@ export default function DiagramCanvas({
   isSelecting,
   selectionBox,
   isMinimapCollapsed,
-  setIsMinimapCollapsed
+  setIsMinimapCollapsed,
+  onToggleTerminal,
+  isTerminalOpen
 }: DiagramCanvasProps) {
   return (
     <div className="flex-1 relative z-0">
@@ -125,6 +129,19 @@ export default function DiagramCanvas({
             </button>
           </Panel>
         )}
+        <Panel position="bottom-left" className="!m-4">
+          <button
+            onClick={onToggleTerminal}
+            className={`w-10 h-10 border rounded-full shadow-md flex items-center justify-center transition-colors ${
+              isTerminalOpen 
+                ? 'bg-blue-600 border-blue-700 text-white hover:bg-blue-700' 
+                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
+            }`}
+            title="Toggle AQL Terminal"
+          >
+            <Terminal className="w-5 h-5" />
+          </button>
+        </Panel>
         <Panel position="top-center">
           {nodes.length === 0 && (
             <div className="bg-white/90 backdrop-blur-sm border rounded-xl px-6 py-4 shadow-lg text-center">

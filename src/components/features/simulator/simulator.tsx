@@ -25,6 +25,7 @@ import { useDesigns } from '@/hooks/useDesigns';
 import SaveModal from './save-modal';
 import CanvasTopBar from './canvas-topbar';
 import SimulationTopBar from './simulation-topbar';
+import TerminalPanel from './terminal-panel';
 
 export default function Simulator() {
   // Local State
@@ -32,6 +33,7 @@ export default function Simulator() {
   const [isMinimapCollapsed, setIsMinimapCollapsed] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   
 
   // Custom Hooks - State Management
@@ -300,7 +302,14 @@ export default function Simulator() {
             selectionBox={selectionBox}
             isMinimapCollapsed={isMinimapCollapsed}
             setIsMinimapCollapsed={setIsMinimapCollapsed}
+            onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+            isTerminalOpen={isTerminalOpen}
           />
+          
+          {/* TERMINAL PANEL */}
+          {isTerminalOpen && (
+            <TerminalPanel onClose={() => setIsTerminalOpen(false)} />
+          )}
         </div>
 
         {/* Right Resize Handle */}
