@@ -9,6 +9,7 @@ import '@xyflow/react/dist/style.css';
 
 import { SimulationNodeData } from '@/types';
 import { PRESETS } from '@/data';
+import { COMPONENT_LABELS, COMPONENT_DEFAULTS } from '@/lib/services';
 
 import SimulationControls from '@/components/features/simulator/simulation-controls';
 import SimulatorHeader from './simulator-header';
@@ -91,6 +92,58 @@ export default function Simulator() {
       setRightTab('report');
     }
   }, [isRunning, setRightTab]);
+
+  // AQL Architecture Command Handlers
+  const handleAddComponent = useCallback((type: string, nodeId?: string, serviceId?: string, label?: string) => {
+    const componentType = type as any; // ComponentType
+    if (nodeId) {
+      // Custom node ID - need to manually create the node
+      const newNode: Node<SimulationNodeData> = {
+        id: nodeId,
+        type: 'infra',
+        position: { x: 250 + Math.random() * 200, y: 100 + nodes.length * 120 },
+        data: {
+          label: label || COMPONENT_LABELS[componentType as keyof typeof COMPONENT_LABELS] || type,
+          componentType: componentType,
+          config: {
+            serviceId: serviceId || COMPONENT_DEFAULTS[componentType as keyof typeof COMPONENT_DEFAULTS],
+            cacheHitRate: componentType === 'cache' ? 0.8 : undefined,
+            queueProcessingTimeMs: componentType === 'message_queue' ? 100 : undefined,
+          },
+        },
+      };
+      setNodes((nds) => [...nds, newNode]);
+      setTimeout(() => saveToHistory(), 50);
+    } else {
+      // Use default addComponent
+      addComponent(componentType);
+    }
+  }, [addComponent, nodes.length, setNodes, saveToHistory]);
+
+  const handleRemoveNode = useCallback((nodeId: string) => {
+    deleteNode(nodeId);
+  }, [deleteNode]);
+
+  const handleConnectNodes = useCallback((sourceId: string, targetId: string, animated?: boolean) => {
+    const newEdge: Edge = {
+      id: `edge_${Date.now()}_${Math.random()}`,
+      source: sourceId,
+      target: targetId,
+      animated: animated || false,
+      style: { stroke: '#94a3b8', strokeWidth: 2 },
+    };
+    setEdges((eds) => [...eds, newEdge]);
+    setTimeout(() => saveToHistory(), 50);
+  }, [setEdges, saveToHistory]);
+
+  const handleDisconnectNodes = useCallback((sourceId: string, targetId: string) => {
+    setEdges((eds) => eds.filter((e) => !(e.source === sourceId && e.target === targetId)));
+    setTimeout(() => saveToHistory(), 50);
+  }, [setEdges, saveToHistory]);
+
+  const handleRenameNode = useCallback((nodeId: string, label: string) => {
+    updateNode(nodeId, { label });
+  }, [updateNode]);
 
   // Custom Hooks - Selection & Events
   const selection = useSelection(nodes, reactFlowRef);
@@ -308,7 +361,14 @@ export default function Simulator() {
           
           {/* TERMINAL PANEL */}
           {isTerminalOpen && (
-            <TerminalPanel onClose={() => setIsTerminalOpen(false)} />
+            <TerminalPanel
+              onClose={() => setIsTerminalOpen(false)}
+              onAddComponent={handleAddComponent}
+              onRemoveNode={handleRemoveNode}
+              onConnectNodes={handleConnectNodes}
+              onDisconnectNodes={handleDisconnectNodes}
+              onRenameNode={handleRenameNode}
+            />
           )}
         </div>
 
