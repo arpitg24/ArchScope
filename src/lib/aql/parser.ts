@@ -1,7 +1,7 @@
 import { ComponentConfig, RateLimitAlgorithm } from '@/types';
 
 export interface ParsedCommand {
-  type: 'set' | 'config' | 'reset_config' | 'sim_set' | 'sim_config' | 'sim_run' | 'sim_stop' | 'sim_reset' | 'show_sim' | 'show_metrics' | 'show_bottlenecks' | 'show_services' | 'load_preset' | 'save_preset' | 'delete_preset' | 'list_preset' | 'unknown';
+  type: 'set' | 'config' | 'reset_config' | 'sim_set' | 'sim_config' | 'sim_run' | 'sim_stop' | 'sim_reset' | 'show_sim' | 'show_metrics' | 'show_bottlenecks' | 'show_services' | 'load_preset' | 'save_preset' | 'delete_preset' | 'list_preset' | 'zoom_in' | 'zoom_out' | 'fit_view' | 'unknown';
   label?: string;
   property?: string;
   value?: string | number | boolean;
@@ -509,6 +509,18 @@ export function parseAQLCommand(command: string): ParsedCommand {
   
   if (cmd === 'show_services') {
     return parseShowServicesCommand(command);
+  }
+
+  if (cmd === 'zoom_in') {
+    return { type: 'zoom_in' };
+  }
+
+  if (cmd === 'zoom_out') {
+    return { type: 'zoom_out' };
+  }
+
+  if (cmd === 'fit_view') {
+    return { type: 'fit_view' };
   }
   
   return { type: 'unknown', error: `Unknown command: ${cmd}` };

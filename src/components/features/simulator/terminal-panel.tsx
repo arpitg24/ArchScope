@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Terminal, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { X, Terminal, Trash2, Sparkles, RotateCcw } from 'lucide-react';
 import { COMPONENT_LABELS } from '@/lib/services';
+import { AgentResponse } from '@/hooks/useAgent';
 
 type ComponentType = keyof typeof COMPONENT_LABELS;
 
@@ -24,16 +25,23 @@ interface TerminalPanelProps {
   onMultiConfig?: (command: string) => Promise<CommandResult>;
   onResetConfig?: (command: string) => Promise<CommandResult>;
   onAQLCommand?: (command: string) => Promise<CommandResult>;
+  onAgentMessage?: (message: string) => Promise<AgentResponse | null>;
+  onExecuteAgentCommands?: (commands: string[]) => Promise<{ cmd: string; success: boolean; message: string }[]>;
+  agentLoading?: boolean;
+  agentError?: string | null;
+  onResetAgentSession?: () => void;
+  onRegisterLogger?: (logger: (entry: LogEntry) => void) => void;
   height?: number;
 }
 
 interface LogEntry {
-  type: 'command' | 'response' | 'error';
+  type: 'command' | 'response' | 'error' | 'agent' | 'agent-cmd';
   content: string;
 }
 
-export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, onConnectNodes, onDisconnectNodes, onRenameNode, onShowNodes, onShowConnections, onSetConfig, onMultiConfig, onResetConfig, onAQLCommand, height = 288 }: TerminalPanelProps) {
+export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, onConnectNodes, onDisconnectNodes, onRenameNode, onShowNodes, onShowConnections, onSetConfig, onMultiConfig, onResetConfig, onAQLCommand, onAgentMessage, onExecuteAgentCommands, agentLoading, agentError, onResetAgentSession, onRegisterLogger, height = 288 }: TerminalPanelProps) {
   const [input, setInput] = useState('');
+  const [aiMode, setAiMode] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([
     { type: 'response', content: 'ArchScope Query Language (AQL) Terminal v1.0.0' },
     { type: 'response', content: 'Type help for available commands' }
@@ -45,6 +53,15 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
   const [pendingDeleteConfirmation, setPendingDeleteConfirmation] = useState<string | null>(null);
   const endOfLogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Register logger for parent component to push logs
+  useEffect(() => {
+    if (onRegisterLogger) {
+      onRegisterLogger((entry: LogEntry) => {
+        setLogs(prev => [...prev, entry]);
+      });
+    }
+  }, [onRegisterLogger]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -89,9 +106,166 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
     }
   };
 
+  const executeAQLCommand = useCallback(async (cmd: string): Promise<CommandResult> => {
+    const parts = cmd.trim().split(/\s+/);
+    const command = parts[0].toLowerCase();
+
+    if (command === 'add') {
+      const componentType = parts[1];
+      const asIndex = parts.findIndex(p => p.toLowerCase() === 'as');
+      const name = asIndex !== -1 ? parts[asIndex + 1] : undefined;
+      const usingIndex = parts.findIndex(p => p.toLowerCase() === 'using');
+      const serviceId = usingIndex !== -1 ? parts[usingIndex + 1] : undefined;
+      if (!componentType || !name) return { success: false, message: `Invalid add command: ${cmd}` };
+      if (onAddComponent) return onAddComponent(componentType, undefined, serviceId, name);
+      return { success: false, message: 'Architecture commands not available' };
+    }
+    if (command === 'remove') {
+      if (onRemoveNode && parts[1]) return onRemoveNode(parts[1]);
+      return { success: false, message: `Invalid remove command: ${cmd}` };
+    }
+    if (command === 'connect') {
+      const source = parts[1];
+      const toIdx = parts.findIndex(p => p.toLowerCase() === 'to');
+      const target = toIdx !== -1 ? parts[toIdx + 1] : undefined;
+      const animated = parts.some(p => p.toLowerCase() === 'animated');
+      if (onConnectNodes && source && target) return onConnectNodes(source, target, animated);
+      return { success: false, message: `Invalid connect command: ${cmd}` };
+    }
+    if (command === 'disconnect') {
+      const source = parts[1];
+      const fromIdx = parts.findIndex(p => p.toLowerCase() === 'from');
+      const target = fromIdx !== -1 ? parts[fromIdx + 1] : undefined;
+      if (onDisconnectNodes && source && target) return onDisconnectNodes(source, target);
+      return { success: false, message: `Invalid disconnect command: ${cmd}` };
+    }
+    if (command === 'rename') {
+      const oldName = parts[1];
+      const toIdx = parts.findIndex(p => p.toLowerCase() === 'to');
+      const newName = toIdx !== -1 ? parts[toIdx + 1] : undefined;
+      if (onRenameNode && oldName && newName) return onRenameNode(oldName, newName);
+      return { success: false, message: `Invalid rename command: ${cmd}` };
+    }
+    if (command === 'set' && onSetConfig) return onSetConfig(cmd);
+    if (command === 'config' && onMultiConfig) return onMultiConfig(cmd);
+    if (command === 'reset' && parts[1]?.toLowerCase() === 'config' && onResetConfig) return onResetConfig(cmd);
+    if (onAQLCommand) return onAQLCommand(cmd);
+    return { success: false, message: `Unknown command: ${cmd}` };
+  }, [onAddComponent, onRemoveNode, onConnectNodes, onDisconnectNodes, onRenameNode, onSetConfig, onMultiConfig, onResetConfig, onAQLCommand]);
+
+  const handleAgentInput = useCallback(async (message: string) => {
+    if (!onAgentMessage) {
+      setLogs(prev => [...prev, { type: 'error', content: 'AI agent is not configured. Please set up the API route and API key.' }]);
+      return;
+    }
+
+    setLogs(prev => [...prev, { type: 'command', content: message }]);
+    setIsProcessing(true);
+
+    const response = await onAgentMessage(message);
+
+    if (!response) {
+      setLogs(prev => [...prev, { type: 'error', content: agentError || 'Agent request failed' }]);
+      setIsProcessing(false);
+      setShouldFocusInput(true);
+      return;
+    }
+
+    if (response.type === 'clarification') {
+      setLogs(prev => [
+        ...prev,
+        { type: 'agent', content: response.summary },
+        ...response.questions.map((q, i) => ({
+          type: 'agent' as const,
+          content: `  ${i + 1}. ${q}`,
+        })),
+      ]);
+      setIsProcessing(false);
+      setShouldFocusInput(true);
+      return;
+    }
+
+    if (response.type === 'execution') {
+      setLogs(prev => [
+        ...prev,
+        { type: 'agent', content: response.explanation },
+        { type: 'agent', content: `Executing ${response.commands.length} AQL commands...` },
+      ]);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      if (onExecuteAgentCommands) {
+        const results = await onExecuteAgentCommands(response.commands);
+        for (const r of results) {
+          setLogs(prev => [
+            ...prev,
+            { type: 'agent-cmd', content: `> ${r.cmd}` },
+            { type: r.success ? 'response' : 'error', content: `  ${r.message}` },
+          ]);
+          if (r.success) successCount++; else failCount++;
+        }
+      } else {
+        for (const cmd of response.commands) {
+          setLogs(prev => [...prev, { type: 'agent-cmd', content: `> ${cmd}` }]);
+          const result = await executeAQLCommand(cmd);
+          setLogs(prev => [
+            ...prev,
+            { type: result.success ? 'response' : 'error', content: `  ${result.message}` },
+          ]);
+          if (result.success) successCount++; else failCount++;
+          await new Promise(r => setTimeout(r, 120));
+        }
+      }
+
+      if (failCount > 0) {
+        setLogs(prev => [...prev, { type: 'error', content: `${failCount} command(s) failed. ${successCount} succeeded. You can fix issues manually or ask me to retry.` }]);
+      } else {
+        setLogs(prev => [...prev, { type: 'agent', content: 'Done. You can refine — e.g. "add a cache" or "make it cheaper".' }]);
+      }
+      setIsProcessing(false);
+      setShouldFocusInput(true);
+      return;
+    }
+  }, [onAgentMessage, agentError, executeAQLCommand, onExecuteAgentCommands]);
+
+  const toggleAiMode = useCallback(() => {
+    setAiMode(prev => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (aiMode) {
+      setLogs(prev => [
+        ...prev,
+        { type: 'agent', content: 'AI Mode activated. Describe what you want to build in plain English.' },
+        { type: 'agent', content: 'Try: "build a URL shortener backend" or "read-heavy API with caching"' },
+      ]);
+    }
+    // Only fire the "switched back" message after the initial render
+    if (!aiMode && logs.some(l => l.type === 'agent')) {
+      setLogs(prev => [
+        ...prev,
+        { type: 'response', content: 'Switched back to AQL mode.' },
+      ]);
+    }
+    setShouldFocusInput(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiMode]);
+
   const handleCommand = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && input.trim()) {
       const rawCommand = input.trim();
+
+      if (aiMode) {
+        setInput('');
+        if (rawCommand !== commandHistory[commandHistory.length - 1]) {
+          setCommandHistory(prev => [...prev, rawCommand]);
+        }
+        setHistoryIndex(-1);
+        await handleAgentInput(rawCommand);
+        return;
+      }
+
       const normalizedCommand = rawCommand.toLowerCase();
       const parts = rawCommand.split(/\s+/);
 
@@ -784,12 +958,47 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
       style={{ height: `${height}px` }}
     >
       {/* Terminal Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+      <div className={`flex items-center justify-between px-4 py-2 border-b transition-colors duration-200 ${
+        aiMode ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'
+      }`}>
         <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-purple-600" />
-          <span className="text-xs uppercase font-bold text-gray-600 tracking-widest select-none">AQL Terminal</span>
+          {aiMode ? (
+            <Sparkles size={14} className="text-indigo-600" />
+          ) : (
+            <Terminal size={14} className="text-purple-600" />
+          )}
+          <span className={`text-xs uppercase font-bold tracking-widest select-none ${
+            aiMode ? 'text-indigo-600' : 'text-gray-600'
+          }`}>
+            {aiMode ? 'AI Agent' : 'AQL Terminal'}
+          </span>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleAiMode}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+              aiMode
+                ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                : 'bg-gray-100 text-gray-500 hover:bg-indigo-100 hover:text-indigo-600 border border-gray-200'
+            }`}
+            title={aiMode ? 'Switch to AQL mode' : 'Switch to AI mode'}
+          >
+            <Sparkles size={12} />
+            {aiMode ? 'AI ON' : 'AI'}
+          </button>
+          {aiMode && onResetAgentSession && (
+            <button
+              onClick={() => {
+                onResetAgentSession();
+                setLogs(prev => [...prev, { type: 'agent', content: 'Session reset. Starting a new conversation.' }]);
+                setShouldFocusInput(true);
+              }}
+              className="hover:text-indigo-700 text-indigo-400 transition-colors"
+              title="New AI conversation"
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
           <button
             onClick={() => setLogs([])}
             className="hover:text-gray-900 text-gray-500 transition-colors flex items-center gap-1 group"
@@ -812,18 +1021,29 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1.5 custom-scrollbar">
         {logs.map((log, i) => (
           <div key={i} className="flex gap-2 whitespace-pre-wrap break-words">
-            {log.type === 'command' && <span className="text-green-600 shrink-0">{'>'}</span>}
+            {log.type === 'command' && <span className={aiMode ? 'text-indigo-500 shrink-0' : 'text-green-600 shrink-0'}>{'>'}</span>}
+            {log.type === 'agent-cmd' && <span className="text-purple-500 shrink-0">{'$'}</span>}
             <span className={
               log.type === 'error' ? 'text-red-600' :
-              log.type === 'command' ? 'text-gray-900' : 'text-gray-600'
+              log.type === 'command' ? 'text-gray-900' :
+              log.type === 'agent' ? 'text-indigo-700' :
+              log.type === 'agent-cmd' ? 'text-purple-600 font-mono text-xs' :
+              'text-gray-600'
             }>
               {log.content}
             </span>
           </div>
         ))}
 
-        {isProcessing && (
-          <div className="text-gray-500 animate-pulse">Processing...</div>
+        {(isProcessing || agentLoading) && (
+          <div className={`flex items-center gap-2 ${aiMode ? 'text-indigo-500' : 'text-gray-500'}`}>
+            <span>{aiMode ? 'Agent is thinking' : 'Processing'}</span>
+            <span className="flex gap-0.5">
+              <span className="w-1 h-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1 h-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1 h-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '300ms' }} />
+            </span>
+          </div>
         )}
 
         {pendingDeleteConfirmation && (
@@ -833,7 +1053,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
         )}
 
         <div className="flex gap-2 items-center mt-1">
-          <span className="text-green-600 shrink-0">{'>'}</span>
+          <span className={`shrink-0 ${aiMode ? 'text-indigo-500' : 'text-green-600'}`}>{aiMode ? '~' : '>'}</span>
           <input
             ref={inputRef}
             type="text"
@@ -855,7 +1075,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
               handleCommand(e);
             }}
             disabled={isProcessing}
-            placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : ''}
+            placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : aiMode ? 'Describe what you want to build...' : ''}
             className="flex-1 bg-transparent outline-none text-gray-900 disabled:opacity-50 placeholder:text-gray-400"
             autoFocus
             autoComplete="off"

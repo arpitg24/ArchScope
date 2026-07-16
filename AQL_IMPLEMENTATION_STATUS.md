@@ -11,7 +11,7 @@ AQL is a declarative-imperative domain-specific language for defining, configuri
 ### ✅ **Fully Implemented**
 - **Configuration Commands** (`set`, `config`, `reset config`) with full validation and error handling
 - **Basic Architecture Commands** (`add`, `remove`, `connect`, `disconnect`, `rename`) with service selection support
-- **Query Commands** (`show_nodes`, `show_connections`, `show_services`) with filtering by component type
+- **Query Commands** (`show_nodes`, `show_connections`, `show_services`) with filtering by component type 
 - **Simulation Commands** (`sim_set`, `sim_config`, `sim_run`, `sim_stop`, `sim_reset`) with validation
 - **Simulation Query Commands** (`show_sim`, `show_metrics`, `show_bottlenecks`) with result display
 - **Preset Commands** (`load_preset`, `save_preset`, `delete_preset`, `list_preset`) with DB integration

@@ -29,6 +29,7 @@ import SimulationTopBar from './simulation-topbar';
 import TerminalPanel from './terminal-panel';
 import { parseAQLCommand } from '@/lib/aql/parser';
 import { executeConfigCommand } from '@/lib/aql/handlers';
+import { useAgent } from '@/hooks/useAgent';
 
 export default function Simulator() {
   // Local State
@@ -37,6 +38,13 @@ export default function Simulator() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+
+  // AI Agent
+  const { isLoading: agentLoading, error: agentError, sendMessage: agentSendMessage, evaluateResults: agentEvaluateResults, resetSession: agentResetSession } = useAgent();
+  const agentTriggeredSimRef = React.useRef(false);
+  const [pendingEvaluation, setPendingEvaluation] = React.useState(false);
+  const terminalLogRef = React.useRef<((entry: { type: 'command' | 'response' | 'error' | 'agent' | 'agent-cmd'; content: string }) => void) | null>(null);
+  const executeAgentCommandsRef = React.useRef<((commands: string[]) => Promise<{ cmd: string; success: boolean; message: string }[]>) | null>(null);
   
 
   // Custom Hooks - State Management
@@ -101,7 +109,6 @@ export default function Simulator() {
     if (!isRunning && simulationResult && simulationResult.totalRequests > 0) {
       
       // Update the global simulation state directly
-      // This is a temporary solution - in a real implementation, this would be handled through proper state management
       const aqlResults = {
         id: `sim_${Date.now()}`,
         timestamp: new Date(),
@@ -132,8 +139,78 @@ export default function Simulator() {
         currentResults: aqlResults,
         resultsHistory: [aqlResults]
       };
+
+      // Auto-evaluate if simulation was triggered by agent
+      if (agentTriggeredSimRef.current) {
+        agentTriggeredSimRef.current = false;
+        setPendingEvaluation(true);
+      }
     }
   }, [isRunning, simulationResult]);
+
+  // Auto-evaluate simulation results when pending
+  useEffect(() => {
+    if (!pendingEvaluation || !simulationResult || agentLoading) return;
+    setPendingEvaluation(false);
+
+    const runEvaluation = async (refinementRound = 0) => {
+      const MAX_REFINEMENTS = 2;
+      const log = terminalLogRef.current;
+      if (log) log({ type: 'agent', content: `Evaluating simulation results against your requirements...` });
+
+      const evalResult = await agentEvaluateResults(simulationResult, nodes, edges);
+
+      if (!evalResult) {
+        if (log) log({ type: 'error', content: 'Failed to evaluate simulation results.' });
+        return;
+      }
+
+      if (log) log({ type: 'agent', content: evalResult.evaluationSummary });
+
+      if (evalResult.type === 'pass') {
+        if (log) log({ type: 'agent', content: '✓ Architecture meets your requirements!' });
+        return;
+      }
+
+      // Refinement needed
+      if (refinementRound >= MAX_REFINEMENTS) {
+        if (log) log({ type: 'agent', content: `Reached max refinement attempts (${MAX_REFINEMENTS}). You can continue refining manually.` });
+        return;
+      }
+
+      if (log) {
+        log({ type: 'agent', content: evalResult.explanation });
+        log({ type: 'agent', content: `Applying refinement ${refinementRound + 1}/${MAX_REFINEMENTS}...` });
+      }
+
+      // Execute refinement commands
+      const executeFn = executeAgentCommandsRef.current;
+      if (!executeFn) return;
+      const results = await executeFn(evalResult.commands);
+      if (log) {
+        for (const r of results) {
+          log({ type: 'agent-cmd', content: `> ${r.cmd}` });
+          log({ type: r.success ? 'response' : 'error', content: `  ${r.message}` });
+        }
+      }
+
+      // If refinement included sim_run, the agentTriggeredSimRef will be set
+      // and this effect will re-trigger when simulation completes.
+      // Check if sim_run was in the refinement commands
+      const hadSimRun = evalResult.commands.some(c => c.trim().toLowerCase().startsWith('sim_run'));
+      if (hadSimRun) {
+        // The sim will run and this effect will be triggered again via pendingEvaluation
+        // But we need to set the round counter — store it for the next eval
+        (window as any).__archscope_refinement_round = refinementRound + 1;
+      } else {
+        if (log) log({ type: 'agent', content: 'Refinement applied. Run a simulation to verify.' });
+      }
+    };
+
+    const round = (window as any).__archscope_refinement_round || 0;
+    (window as any).__archscope_refinement_round = 0;
+    runEvaluation(round);
+  }, [pendingEvaluation, simulationResult, nodes, edges, agentEvaluateResults, agentLoading]);
 
   // Helper function to find node by label
   const findNodeByLabel = useCallback((label: string) => {
@@ -385,6 +462,175 @@ export default function Simulator() {
     return executeConfigCommand(parsed, nodes, edges, updateNode);
   }, [nodes, edges, updateNode]);
 
+  // Agent batch command executor — processes all commands with fresh state
+  const handleExecuteAgentCommands = useCallback(async (commands: string[]): Promise<{ cmd: string; success: boolean; message: string }[]> => {
+    const results: { cmd: string; success: boolean; message: string }[] = [];
+
+    // We need to track nodes/edges locally during the batch since React state is async
+    let localNodes: Node<SimulationNodeData>[] = [...nodes];
+    let localEdges: Edge[] = [...edges];
+
+    for (const cmd of commands) {
+      const parts = cmd.trim().split(/\s+/);
+      const keyword = parts[0].toLowerCase();
+
+      if (keyword === 'add') {
+        const componentType = parts[1] as keyof typeof COMPONENT_LABELS;
+        const asIndex = parts.findIndex(p => p.toLowerCase() === 'as');
+        const label = asIndex !== -1 ? parts[asIndex + 1] : undefined;
+        const usingIndex = parts.findIndex(p => p.toLowerCase() === 'using');
+        const serviceId = usingIndex !== -1 ? parts[usingIndex + 1] : undefined;
+
+        if (!componentType || !label || !COMPONENT_LABELS[componentType]) {
+          results.push({ cmd, success: false, message: `Invalid add command: ${cmd}` });
+          continue;
+        }
+        if (localNodes.some(n => n.data.label === label)) {
+          results.push({ cmd, success: false, message: `Component "${label}" already exists` });
+          continue;
+        }
+        const finalServiceId = serviceId || COMPONENT_DEFAULTS[componentType];
+        const newNode: Node<SimulationNodeData> = {
+          id: label,
+          type: 'infra',
+          position: { x: 250 + Math.random() * 200, y: 100 + localNodes.length * 120 },
+          data: {
+            label,
+            componentType,
+            config: {
+              serviceId: finalServiceId,
+              cacheHitRate: componentType === 'cache' ? 0.8 : undefined,
+              queueProcessingTimeMs: componentType === 'message_queue' ? 100 : undefined,
+            },
+          },
+        };
+        localNodes = [...localNodes, newNode];
+        results.push({ cmd, success: true, message: `Added ${componentType} as ${label} using ${finalServiceId}` });
+
+      } else if (keyword === 'connect') {
+        const source = parts[1];
+        const toIdx = parts.findIndex(p => p.toLowerCase() === 'to');
+        const target = toIdx !== -1 ? parts[toIdx + 1] : undefined;
+        const animated = parts.some(p => p.toLowerCase() === 'animated');
+
+        if (!source || !target) {
+          results.push({ cmd, success: false, message: `Invalid connect command: ${cmd}` });
+          continue;
+        }
+        const sourceNode = localNodes.find(n => n.data.label === source);
+        const targetNode = localNodes.find(n => n.data.label === target);
+        if (!sourceNode) { results.push({ cmd, success: false, message: `Component "${source}" not found` }); continue; }
+        if (!targetNode) { results.push({ cmd, success: false, message: `Component "${target}" not found` }); continue; }
+        if (localEdges.some(e => e.source === sourceNode.id && e.target === targetNode.id)) {
+          results.push({ cmd, success: false, message: `Connection already exists` }); continue;
+        }
+        const newEdge: Edge = {
+          id: `edge_${sourceNode.id}_${targetNode.id}`,
+          source: sourceNode.id,
+          target: targetNode.id,
+          animated: animated || false,
+          style: { stroke: '#94a3b8', strokeWidth: 2 },
+        };
+        localEdges = [...localEdges, newEdge];
+        results.push({ cmd, success: true, message: `Connected ${source} to ${target}${animated ? ' (animated)' : ''}` });
+
+      } else if (keyword === 'disconnect') {
+        const source = parts[1];
+        const fromIdx = parts.findIndex(p => p.toLowerCase() === 'from');
+        const target = fromIdx !== -1 ? parts[fromIdx + 1] : undefined;
+        if (!source || !target) { results.push({ cmd, success: false, message: `Invalid disconnect command: ${cmd}` }); continue; }
+        const sourceNode = localNodes.find(n => n.data.label === source);
+        const targetNode = localNodes.find(n => n.data.label === target);
+        if (!sourceNode) { results.push({ cmd, success: false, message: `Component "${source}" not found` }); continue; }
+        if (!targetNode) { results.push({ cmd, success: false, message: `Component "${target}" not found` }); continue; }
+        localEdges = localEdges.filter(e => !(e.source === sourceNode.id && e.target === targetNode.id));
+        results.push({ cmd, success: true, message: `Disconnected ${source} from ${target}` });
+
+      } else if (keyword === 'remove') {
+        const label = parts[1];
+        const node = localNodes.find(n => n.data.label === label);
+        if (!node) { results.push({ cmd, success: false, message: `Component "${label}" not found` }); continue; }
+        localNodes = localNodes.filter(n => n.id !== node.id);
+        localEdges = localEdges.filter(e => e.source !== node.id && e.target !== node.id);
+        results.push({ cmd, success: true, message: `Removed ${label}` });
+
+      } else if (keyword === 'rename') {
+        const oldName = parts[1];
+        const toIdx = parts.findIndex(p => p.toLowerCase() === 'to');
+        const newName = toIdx !== -1 ? parts[toIdx + 1] : undefined;
+        if (!oldName || !newName) { results.push({ cmd, success: false, message: `Invalid rename command: ${cmd}` }); continue; }
+        const node = localNodes.find(n => n.data.label === oldName);
+        if (!node) { results.push({ cmd, success: false, message: `Component "${oldName}" not found` }); continue; }
+        localNodes = localNodes.map(n => n.id === node.id ? { ...n, id: newName, data: { ...n.data, label: newName } } : n);
+        localEdges = localEdges.map(e => {
+          let updated = e;
+          if (e.source === node.id) updated = { ...updated, source: newName, id: `edge_${newName}_${e.target}` };
+          if (e.target === node.id) updated = { ...updated, target: newName, id: `edge_${e.source}_${newName}` };
+          return updated;
+        });
+        results.push({ cmd, success: true, message: `Renamed ${oldName} to ${newName}` });
+
+      } else if (keyword === 'set' || keyword === 'config' || (keyword === 'reset' && parts[1]?.toLowerCase() === 'config')) {
+        // Config commands operate on localNodes
+        const parsed = parseAQLCommand(cmd);
+        if (parsed.type === 'unknown') {
+          results.push({ cmd, success: false, message: parsed.error || 'Invalid command' });
+          continue;
+        }
+        const localUpdateNode = (nodeId: string, data: Partial<SimulationNodeData>) => {
+          localNodes = localNodes.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n);
+        };
+        const result = await executeConfigCommand(parsed, localNodes as Node<SimulationNodeData>[], localEdges, localUpdateNode);
+        results.push({ cmd, success: result.success, message: result.message });
+
+      } else {
+        // Simulation / preset / other commands — delegate to existing handler
+        // Flush local state to React BEFORE simulation commands so sim reads current architecture
+        if (keyword === 'sim_run' || keyword === 'sim_config' || keyword === 'sim_set' || keyword === 'sim_reset') {
+          setNodes(localNodes as Node<SimulationNodeData>[]);
+          setEdges(localEdges);
+          // Give React a tick to commit the state
+          await new Promise(r => setTimeout(r, 100));
+        }
+
+        // Mark that this simulation was triggered by the agent for auto-evaluation
+        if (keyword === 'sim_run') {
+          agentTriggeredSimRef.current = true;
+        }
+
+        const parsed = parseAQLCommand(cmd);
+        if (parsed.type === 'unknown') {
+          results.push({ cmd, success: false, message: parsed.error || `Unknown command: ${cmd}` });
+          continue;
+        }
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+        const updateUIParams = (partialParams: Partial<SimulationParams>) => {
+          setSimulationParams(prev => ({ ...prev, ...partialParams }));
+        };
+        const localUpdateNode = (nodeId: string, data: Partial<SimulationNodeData>) => {
+          localNodes = localNodes.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n);
+        };
+        const result = await executeConfigCommand(
+          parsed, localNodes as Node<SimulationNodeData>[], localEdges, localUpdateNode,
+          setNodes, setEdges, setSimulationParams, simulationParams,
+          updateUIParams, handleRunSimulation, stopSimulation, handleReset,
+          undefined, undefined, token, setCurrentDesignName
+        );
+        results.push({ cmd, success: result.success, message: result.message });
+      }
+    }
+
+    // Apply the final state in one batch
+    setNodes(localNodes as Node<SimulationNodeData>[]);
+    setEdges(localEdges);
+    setTimeout(() => saveToHistory(), 50);
+
+    return results;
+  }, [nodes, edges, setNodes, setEdges, saveToHistory, updateNode, setSimulationParams, simulationParams, handleRunSimulation, stopSimulation, handleReset, setCurrentDesignName]);
+
+  // Keep ref in sync for evaluate effect
+  executeAgentCommandsRef.current = handleExecuteAgentCommands;
+
   // General AQL Command Handler (for simulation commands and others)
   const handleAQLCommand = useCallback(async (command: string) => {
     const parsed = parseAQLCommand(command);
@@ -393,6 +639,20 @@ export default function Simulator() {
         success: false,
         message: parsed.error || 'Invalid command',
       };
+    }
+
+    // Viewport commands — handled here using the ReactFlow instance
+    if (parsed.type === 'zoom_in') {
+        .current?.zoomIn();
+      return { success: true, message: 'Zoomed in' };
+    }
+    if (parsed.type === 'zoom_out') {
+      reactFlowRef.current?.zoomOut();
+      return { success: true, message: 'Zoomed out' };
+    }
+    if (parsed.type === 'fit_view') {
+      reactFlowRef.current?.fitView({ padding: 0.2 });
+      return { success: true, message: 'Fit view' };
     }
 
     // Get token from localStorage
@@ -427,7 +687,7 @@ export default function Simulator() {
       token,
       setCurrentDesignName
     );
-  }, [nodes, edges, updateNode, setNodes, setEdges, setSimulationParams, simulationParams, handleRunSimulation, stopSimulation, handleReset, setCurrentDesignName]);
+  }, [nodes, edges, updateNode, setNodes, setEdges, setSimulationParams, simulationParams, handleRunSimulation, stopSimulation, handleReset, setCurrentDesignName, reactFlowRef]);
 
   // Custom Hooks - Selection & Events
   const selection = useSelection(nodes, reactFlowRef);
@@ -672,6 +932,12 @@ export default function Simulator() {
                 onMultiConfig={handleMultiConfig}
                 onResetConfig={handleResetConfig}
                 onAQLCommand={handleAQLCommand}
+                onAgentMessage={(msg) => agentSendMessage(msg, nodes, edges)}
+                onExecuteAgentCommands={handleExecuteAgentCommands}
+                agentLoading={agentLoading}
+                agentError={agentError}
+                onResetAgentSession={agentResetSession}
+                onRegisterLogger={(logger) => { terminalLogRef.current = logger; }}
                 height={terminalPanel.size}
               />
             </>
