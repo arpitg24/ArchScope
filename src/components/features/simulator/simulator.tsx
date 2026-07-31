@@ -461,7 +461,6 @@ if (command.trim() === 'fit_view') {
   const { isSelecting, selectionBox, handleSelectionStart, handleSelectionMove, handleSelectionEnd } = selection;
 
   const nodeEvents = useNodeEvents({
-    selectedNode,
     selectedNodes,
     setSelectedNode,
     setSelectedNodes,
