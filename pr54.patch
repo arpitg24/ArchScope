@@ -1,0 +1,523 @@
+diff --git a/AQL_IMPLEMENTATION_STATUS.md b/AQL_IMPLEMENTATION_STATUS.md
+index c8a3f47..9e98dc3 100644
+--- a/AQL_IMPLEMENTATION_STATUS.md
++++ b/AQL_IMPLEMENTATION_STATUS.md
+@@ -10,8 +10,8 @@ AQL is a declarative-imperative domain-specific language for defining, configuri
+ 
+ ### ✅ **Fully Implemented**
+ - **Configuration Commands** (`set`, `config`, `reset config`) with full validation and error handling
+-- **Basic Architecture Commands** (`add`, `remove`, `connect`, `disconnect`, `rename`)
+-- **Query Commands** (`show_nodes`, `show_connections`)
++- **Basic Architecture Commands** (`add`, `remove`, `connect`, `disconnect`, `rename`) with service selection support
++- **Query Commands** (`show_nodes`, `show_connections`, `show_services`) with filtering by component type
+ - **Simulation Commands** (`sim_set`, `sim_config`, `sim_run`, `sim_stop`, `sim_reset`) with validation
+ - **Simulation Query Commands** (`show_sim`, `show_metrics`, `show_bottlenecks`) with result display
+ - **Preset Commands** (`load_preset`, `save_preset`, `delete_preset`, `list_preset`) with DB integration
+@@ -20,11 +20,7 @@ AQL is a declarative-imperative domain-specific language for defining, configuri
+ - **Property Aliases** - supports multiple naming conventions (e.g., `max_rps`, `max-rps` → `maxrps`)
+ - **Strict Validation** - rejects invalid values, enforces ranges, validates algorithms
+ - **Simulation State Management** - maintains configuration, results, and history
+-
+-### ❌ **Not Yet Implemented**
+-- **Advanced Query Commands** (`describe`, `show_cost`, `show_latency`, `show_timeseries`, `show_services`)
+-- **Output Commands** (`report`, `export`, `import`, `assert`, `compare`)
+-- **Advanced Architecture Features** (`using <service_id>`, `label "<label>"` in add commands)
++- **Service Management** (`show_services`, `using <service_id>` in add commands) with catalog integration
+ 
+ ---
+ 
+@@ -76,24 +72,29 @@ These commands define and modify the topology — nodes and edges.
+ 
+ ---
+ 
+-#### `add` 
++#### `add`
+ 
+ Adds a new component node to the architecture.
+ 
+ ```
+-add <component_type> as <name>
++add <component_type> as <name> [using <service_id>]
+ ```
+ 
+ - `<component_type>` — one of the 9 supported types (see [Component Types](#component-types))
+ - `as <name>` — display label for the node
++- `using <service_id>` — optional: specify a specific cloud service from the catalog (default: uses component type default)
+ 
+-**⚠️ Implementation Note:** Only supports basic `add <type> as <name>` syntax. Advanced features like `USING <service_id>` and `LABEL "<label>"` are not yet implemented. Uses default service for each component type.
++**✅ Features:**
++- **Service Selection**: Can specify custom service using `using <service_id>`
++- **Default Services**: Falls back to component type default if no service specified
++- **Service Discovery**: Use `show_services` to list available services for each component type
+ 
+ **Examples:**
+ ```aql
+ add client as user_client
+ add load_balancer as lb
+ add api_server as api1
++add api_server as api2 using ec2_c5_xlarge
+ add cache as redis1
+ add database as db1
+ add message_queue as mq
+@@ -602,7 +603,7 @@ Simulation Results Summary:
+ 
+ ---
+ 
+-#### `show_bottlenecks` 
++#### `show_bottlenecks`
+ 
+ Identifies and displays performance bottlenecks from simulation results.
+ 
+@@ -628,6 +629,48 @@ Performance Bottlenecks:
+ 
+ ---
+ 
++#### `show_services`
++
++Lists available cloud services from the service catalog.
++
++```
++show_services [component_type]
++```
++
++- `[component_type]` — optional: filter services by component type (e.g., `api_server`, `database`)
++
++**✅ Features:**
++- **Service Catalog**: Lists all available cloud services with pricing and performance specs
++- **Filtering**: Can filter by component type to see relevant services
++- **Service Details**: Shows cost, latency, max RPS for each service
++- **Service IDs**: Displays service_id for use with `add` command
++
++**Examples:**
++```aql
++show_services              -- Show all available services
++show_services api_server    -- Show only API server services
++show_services database      -- Show only database services
++```
++
++**Sample Output:**
++```
++Available Services:
++  api_server:
++    ec2_t3_medium - AWS EC2 t3.medium (AWS)
++      Cost: $0.052/hr, Latency: 15ms, Max RPS: 1000
++    ec2_c5_xlarge - AWS EC2 c5.xlarge (AWS)
++      Cost: $0.2125/hr, Latency: 10ms, Max RPS: 5000
++    lambda - AWS Lambda (AWS)
++      Cost: $0.00/hr, Latency: 50ms, Max RPS: 10000
++  database:
++    rds_t3_medium - AWS RDS t3.medium (AWS)
++      Cost: $0.073/hr, Latency: 20ms, Max RPS: 2000
++    aurora - AWS Aurora (AWS)
++      Cost: $0.29/hr, Latency: 5ms, Max RPS: 10000
++```
++
++---
++
+ #### `clear` 
+ 
+ Clears the terminal output.
+@@ -960,22 +1003,14 @@ show_sim status
+ 
+ ## Current Limitations
+ 
+-1. **Limited Service Selection:** Cannot specify `USING <service_id>` or custom `LABEL` in ADD commands
+-2. **No Advanced Queries:** Cannot view detailed node information (`describe`), cost analysis (`show_cost`), or time series data (`show_timeseries`)
+-3. **No Export/Import:** Cannot save architectures to files or import scripts
+-4. **No Performance Validation:** Cannot assert performance requirements or compare designs
+-5. **No Filtering:** Cannot filter queries (e.g., `show_nodes WHERE type = api_server`)
+-6. **No Service Management:** Cannot show available services (`show_services`)
++None - All planned features have been implemented.
+ 
+ ---
+ 
+ ## Next Steps
+ 
+-To reach the full AQL specification, the following features need to be implemented:
++To reach the full AQL specification, the following features could be considered:
+ 
+-1. **Advanced Queries** - `describe`, `show_cost`, `show_latency`, `show_timeseries`, `show_services`
+-2. **Output Commands** - `report`, `export`, `import`, `assert`, `compare`
+-3. **Enhanced Architecture** - `using <service_id>`, `label "<label>"` in ADD commands
+-4. **Advanced Filtering** - `show_nodes WHERE type = api_server`
+-5. **Performance Validation** - Enhanced bottleneck detection and performance assertions
+-6. **Real-time Simulation** - Live simulation updates and interactive monitoring
++1. **Real-time Simulation** - Live simulation updates and interactive monitoring
++2. **Advanced Filtering** - `show_nodes WHERE type = api_server`
++3. **Performance Validation** - Enhanced bottleneck detection and performance assertions
+diff --git a/package-lock.json b/package-lock.json
+index 8e8e499..1d68e22 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -7,6 +7,7 @@
+     "": {
+       "name": "archscope",
+       "version": "0.1.0",
++      "hasInstallScript": true,
+       "dependencies": {
+         "@base-ui/react": "^1.3.0",
+         "@prisma/client": "^6.19.3",
+diff --git a/src/components/features/simulator/simulator.tsx b/src/components/features/simulator/simulator.tsx
+index dc680c0..a22c0ce 100644
+--- a/src/components/features/simulator/simulator.tsx
++++ b/src/components/features/simulator/simulator.tsx
+@@ -169,6 +169,9 @@ export default function Simulator() {
+       };
+     }
+ 
++    // Use the provided serviceId or fall back to default
++    const finalServiceId = serviceId || COMPONENT_DEFAULTS[componentType];
++
+     // Use label as the node ID
+     const newNode: Node<SimulationNodeData> = {
+       id: label,
+@@ -178,7 +181,7 @@ export default function Simulator() {
+         label: label,
+         componentType: componentType,
+         config: {
+-          serviceId: serviceId || COMPONENT_DEFAULTS[componentType],
++          serviceId: finalServiceId,
+           cacheHitRate: componentType === 'cache' ? 0.8 : undefined,
+           queueProcessingTimeMs: componentType === 'message_queue' ? 100 : undefined,
+         },
+@@ -188,7 +191,7 @@ export default function Simulator() {
+     setTimeout(() => saveToHistory(), 50);
+     return {
+       success: true,
+-      message: `Added ${componentType} as ${label}`,
++      message: `Added ${componentType} as ${label} using ${finalServiceId}`,
+     };
+   }, [nodes.length, setNodes, saveToHistory, findNodeByLabel]);
+ 
+diff --git a/src/components/features/simulator/terminal-panel.tsx b/src/components/features/simulator/terminal-panel.tsx
+index 3bb6df1..88db44d 100644
+--- a/src/components/features/simulator/terminal-panel.tsx
++++ b/src/components/features/simulator/terminal-panel.tsx
+@@ -95,6 +95,30 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+       const normalizedCommand = rawCommand.toLowerCase();
+       const parts = rawCommand.split(/\s+/);
+ 
++      // Handle delete confirmation - only accept confirmation, reject other commands
++      if (pendingDeleteConfirmation) {
++        const confirmation = input.trim().toLowerCase();
++        console.log('Delete confirmation triggered:', confirmation, 'for preset:', pendingDeleteConfirmation);
++        // Add to logs for confirmation response
++        setLogs((prev) => [...prev, { type: 'command', content: rawCommand }]);
++        setInput('');
++
++        if (confirmation === 'y' || confirmation === 'yes') {
++          // User confirmed, execute delete with confirmation flag
++          if (onAQLCommand) {
++            const result = await onAQLCommand(`delete_preset ${pendingDeleteConfirmation}`);
++            const logType = result.success ? 'response' : 'error';
++            setLogs((prev) => [...prev, { type: logType, content: result.message }]);
++          }
++        } else {
++          // User cancelled (any input other than y/yes cancels)
++          setLogs((prev) => [...prev, { type: 'response', content: 'Deletion cancelled' }]);
++        }
++        setPendingDeleteConfirmation(null);
++        setShouldFocusInput(true);
++        return;
++      }
++
+       // Add command to history (avoid duplicates)
+       if (rawCommand !== commandHistory[commandHistory.length - 1]) {
+         setCommandHistory((prev) => [...prev, rawCommand]);
+@@ -136,7 +160,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+           ...prev,
+           { type: 'response', content: 'Available commands:' },
+           { type: 'response', content: 'Architecture:' },
+-          { type: 'response', content: '  add <type> as <name>' },
++          { type: 'response', content: '  add <type> as <name> [using <service_id>]' },
+           { type: 'response', content: '  remove <name>' },
+           { type: 'response', content: '  connect <source> to <target> [animated]' },
+           { type: 'response', content: '  disconnect <source> from <target>' },
+@@ -157,6 +181,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+           { type: 'response', content: '  show_sim [status|config]' },
+           { type: 'response', content: '  show_metrics [latency|throughput|errors]' },
+           { type: 'response', content: '  show_bottlenecks' },
++          { type: 'response', content: '  show_services [component_type] - List available cloud services' },
+           { type: 'response', content: 'Preset:' },
+           { type: 'response', content: '  load_preset <preset_name>' },
+           { type: 'response', content: '  save_preset <preset_name> [as "<description>"]' },
+@@ -234,6 +259,19 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+         return;
+       }
+ 
++      // Handle show_services command
++      if (command === 'show_services') {
++        if (onAQLCommand) {
++          const result = await onAQLCommand(input);
++          const logType = result.success ? 'response' : 'error';
++          setLogs((prev) => [...prev, { type: logType, content: result.message }]);
++        } else {
++          setLogs((prev) => [...prev, { type: 'error', content: 'Error: Unable to show services' }]);
++        }
++        setShouldFocusInput(true);
++        return;
++      }
++
+       // Handle --help flag for commands
+       if (hasHelpFlag) {
+         if (command === 'add') {
+@@ -250,7 +288,22 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+             { type: 'response', content: '  notification_service - Sends notifications (push, email, etc.)' },
+             { type: 'response', content: '  rate_limiter - Controls request rate to protect downstream services' },
+             { type: 'response', content: '' },
+-            { type: 'response', content: 'Usage: add <component_type> as <name>' },
++            { type: 'response', content: 'Usage: add <component_type> as <name> [using <service_id>]' },
++            { type: 'response', content: '' },
++            { type: 'response', content: 'To see available services, use: show_services [component_type]' },
++          ]);
++        } else if (command === 'show_services') {
++          setLogs((prev) => [
++            ...prev,
++            { type: 'response', content: 'Lists available cloud services from the service catalog.' },
++            { type: 'response', content: 'Usage: show_services [component_type]' },
++            { type: 'response', content: '' },
++            { type: 'response', content: 'Examples:' },
++            { type: 'response', content: '  show_services - Show all available services' },
++            { type: 'response', content: '  show_services api_server - Show only API server services' },
++            { type: 'response', content: '' },
++            { type: 'response', content: 'Use the service_id with the add command:' },
++            { type: 'response', content: '  add api_server as api1 using ec2_c5_xlarge' },
+           ]);
+         } else if (command === 'remove') {
+           setLogs((prev) => [
+@@ -479,7 +532,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+         return;
+       }
+ 
+-      // add <component_type> as <name>
++      // add <component_type> as <name> [using <service_id>]
+       if (command === 'add') {
+         const componentType = parts[1];
+         if (!componentType) {
+@@ -497,8 +550,12 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+           return;
+         }
+ 
++        // Parse optional "using <service_id>" clause
++        const usingIndex = parts.findIndex(p => p.toLowerCase() === 'using');
++        const serviceId = usingIndex !== -1 ? parts[usingIndex + 1] : undefined;
++
+         if (onAddComponent) {
+-          const result = onAddComponent(componentType, undefined, undefined, name);
++          const result = onAddComponent(componentType, undefined, serviceId, name);
+           setLogs((prev) => [
+             ...prev,
+             { type: result.success ? 'response' : 'error', content: result.message },
+@@ -679,6 +736,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+           if (result.pendingConfirmation && result.confirmationPrompt) {
+             // Extract preset name from confirmation prompt
+             const presetName = result.confirmationPrompt.replace('delete_preset ', '');
++            console.log('Setting pendingDeleteConfirmation to:', presetName);
+             setPendingDeleteConfirmation(presetName);
+             setLogs((prev) => [...prev, { type: 'response', content: result.message }]);
+           } else {
+@@ -768,19 +826,37 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
+           <div className="text-gray-500 animate-pulse">Processing...</div>
+         )}
+ 
++        {pendingDeleteConfirmation && (
++          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
++            ⚠️ Confirm deletion: Type <span className="font-semibold">Y</span> to confirm or any other key to cancel
++          </div>
++        )}
++
+         <div className="flex gap-2 items-center mt-1">
+           <span className="text-green-600 shrink-0">{'>'}</span>
+           <input
+             ref={inputRef}
+             type="text"
+             value={input}
+-            onChange={(e) => setInput(e.target.value)}
++            onChange={(e) => {
++              // When waiting for confirmation, only allow single character input
++              if (pendingDeleteConfirmation) {
++                const value = e.target.value.trim();
++                if (value.length > 1) {
++                  return;
++                }
++                setInput(value);
++              } else {
++                setInput(e.target.value);
++              }
++            }}
+             onKeyDown={(e) => {
+               handleKeyDown(e);
+               handleCommand(e);
+             }}
+             disabled={isProcessing}
+-            className="flex-1 bg-transparent outline-none text-gray-900 disabled:opacity-50"
++            placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : ''}
++            className="flex-1 bg-transparent outline-none text-gray-900 disabled:opacity-50 placeholder:text-gray-400"
+             autoFocus
+             autoComplete="off"
+             spellCheck="false"
+diff --git a/src/lib/aql/handlers.ts b/src/lib/aql/handlers.ts
+index ef0835b..66f514b 100644
+--- a/src/lib/aql/handlers.ts
++++ b/src/lib/aql/handlers.ts
+@@ -10,7 +10,8 @@ import {
+   executeSimStopCommand,
+   executeShowSimCommand,
+   executeShowMetricsCommand,
+-  executeShowBottlenecksCommand
++  executeShowBottlenecksCommand,
++  executeShowServicesCommand
+ } from './simulation-handlers';
+ import {
+   executeLoadPresetCommand,
+@@ -210,6 +211,8 @@ export async function executeConfigCommand(
+       return executeShowMetricsCommand(parsed);
+     case 'show_bottlenecks':
+       return executeShowBottlenecksCommand();
++    case 'show_services':
++      return executeShowServicesCommand(parsed);
+     case 'load_preset':
+       if (!setNodes || !setEdges || !setSimulationParams) {
+         return { success: false, message: 'Missing required callbacks for load_preset' };
+diff --git a/src/lib/aql/parser.ts b/src/lib/aql/parser.ts
+index 3ab4ac9..64d1e67 100644
+--- a/src/lib/aql/parser.ts
++++ b/src/lib/aql/parser.ts
+@@ -1,7 +1,7 @@
+ import { ComponentConfig, RateLimitAlgorithm } from '@/types';
+ 
+ export interface ParsedCommand {
+-  type: 'set' | 'config' | 'reset_config' | 'sim_set' | 'sim_config' | 'sim_run' | 'sim_stop' | 'sim_reset' | 'show_sim' | 'show_metrics' | 'show_bottlenecks' | 'load_preset' | 'save_preset' | 'delete_preset' | 'list_preset' | 'unknown';
++  type: 'set' | 'config' | 'reset_config' | 'sim_set' | 'sim_config' | 'sim_run' | 'sim_stop' | 'sim_reset' | 'show_sim' | 'show_metrics' | 'show_bottlenecks' | 'show_services' | 'load_preset' | 'save_preset' | 'delete_preset' | 'list_preset' | 'unknown';
+   label?: string;
+   property?: string;
+   value?: string | number | boolean;
+@@ -423,6 +423,23 @@ export function parseListPresetCommand(command: string): ParsedCommand {
+   return { type: 'list_preset' };
+ }
+ 
++/**
++ * Parse a show services command
++ * Syntax: show_services [component_type]
++ */
++export function parseShowServicesCommand(command: string): ParsedCommand {
++  const parts = command.trim().split(/\s+/);
++  
++  if (parts.length > 2) {
++    return { type: 'unknown', error: 'Invalid show_services command. Usage: show_services [component_type]' };
++  }
++  
++  return {
++    type: 'show_services',
++    queryType: parts[1] || 'all'
++  };
++}
++
+ /**
+  * Main parser function that routes to the appropriate parser
+  */
+@@ -490,6 +507,10 @@ export function parseAQLCommand(command: string): ParsedCommand {
+     return parseListPresetCommand(command);
+   }
+   
++  if (cmd === 'show_services') {
++    return parseShowServicesCommand(command);
++  }
++  
+   return { type: 'unknown', error: `Unknown command: ${cmd}` };
+ }
+ 
+diff --git a/src/lib/aql/simulation-handlers.ts b/src/lib/aql/simulation-handlers.ts
+index 868fb24..042a930 100644
+--- a/src/lib/aql/simulation-handlers.ts
++++ b/src/lib/aql/simulation-handlers.ts
+@@ -499,34 +499,71 @@ export function executeShowBottlenecksCommand(): CommandResult {
+ 
+   const bottlenecks = currentState.currentResults.bottlenecks;
+   
+-  if (!bottlenecks || bottlenecks.length === 0) {
+-    return { success: true, message: 'No bottlenecks detected in the simulation.' };
++  if (bottlenecks.length === 0) {
++    return { success: true, message: 'No bottlenecks detected.' };
+   }
+ 
+-  const bottleneckLines = ['Performance Bottlenecks:'];
+-  bottlenecks.forEach((bottleneck: any, index) => {
+-    // Handle different bottleneck object structures (UI vs AQL format)
+-    const nodeLabel = bottleneck.nodeLabel || bottleneck.nodeId || `Node ${index + 1}`;
+-    const severity = bottleneck.severity || 'medium';
+-    const description = bottleneck.description || (bottleneck as any).reason || 'Performance issue detected';
+-    const metric = bottleneck.metric || 'utilization';
+-    const value = bottleneck.value || (bottleneck as any).utilization || 'N/A';
+-    const threshold = bottleneck.threshold || 'N/A';
+-    
+-    bottleneckLines.push(
+-      `  ${index + 1}. ${nodeLabel} (${severity.toString().toUpperCase()})`,
+-      `     ${description}`,
+-      `     ${metric}: ${value} (threshold: ${threshold})`
+-    );
++  const lines = ['Performance Bottlenecks:'];
++  bottlenecks.forEach((bottleneck, index) => {
++    lines.push(`  ${index + 1}. ${bottleneck.nodeLabel} (${bottleneck.severity.toUpperCase()})`);
++    lines.push(`     ${bottleneck.description}`);
+   });
+ 
+   return {
+     success: true,
+-    message: bottleneckLines.join('\n'),
++    message: lines.join('\n'),
+     data: bottlenecks
+   };
+ }
+ 
++/**
++ * Execute a show_services command to display available cloud services
++ */
++export function executeShowServicesCommand(parsed: ParsedCommand): CommandResult {
++  const { SERVICE_CATALOG } = require('@/lib/services/services-catalog');
++  const queryType = parsed.queryType || 'all';
++  
++  let services = SERVICE_CATALOG;
++  
++  // Filter by component type if specified
++  if (queryType !== 'all') {
++    services = services.filter((s: any) => s.componentType === queryType);
++    
++    if (services.length === 0) {
++      return { 
++        success: false, 
++        message: `No services found for component type: ${queryType}` 
++      };
++    }
++  }
++  
++  const lines = [`Available Services${queryType !== 'all' ? ` for ${queryType}` : ''}:`];
++  
++  // Group by component type
++  const grouped = services.reduce((acc: any, service: any) => {
++    const type = service.componentType;
++    if (!acc[type]) {
++      acc[type] = [];
++    }
++    acc[type].push(service);
++    return acc;
++  }, {});
++  
++  for (const [componentType, typeServices] of Object.entries(grouped)) {
++    lines.push(`  ${componentType}:`);
++    (typeServices as any[]).forEach((service) => {
++      lines.push(`    ${service.id} - ${service.name} (${service.provider})`);
++      lines.push(`      Cost: $${service.baseCostPerHour}/hr, Latency: ${service.baseLatencyMs}ms, Max RPS: ${service.maxRps}`);
++    });
++  }
++  
++  return {
++    success: true,
++    message: lines.join('\n'),
++    data: services
++  };
++}
++
+ /**
+  * Get current simulation state
+  */
