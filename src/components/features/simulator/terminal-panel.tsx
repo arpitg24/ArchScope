@@ -1100,11 +1100,7 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
               handleCommand(e);
             }}
             disabled={isProcessing}
-<<<<<<< HEAD
             placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : aiMode ? 'Describe what you want to build...' : ''}
-=======
-            placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : ''}
->>>>>>> caa4896530fa7fd17e571ddf82f1a1af7a3db3c1
             className="flex-1 bg-transparent outline-none text-gray-900 disabled:opacity-50 placeholder:text-gray-400"
             autoFocus
             autoComplete="off"
