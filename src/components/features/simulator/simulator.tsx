@@ -30,6 +30,7 @@ import TerminalPanel from './terminal-panel';
 import { parseAQLCommand } from '@/lib/aql/parser';
 import { executeConfigCommand } from '@/lib/aql/handlers';
 import { useAgent } from '@/hooks/useAgent';
+import NodeContextMenu from './node-context-menu';
 
 export default function Simulator() {
   // Local State
@@ -45,6 +46,7 @@ export default function Simulator() {
   const [pendingEvaluation, setPendingEvaluation] = React.useState(false);
   const terminalLogRef = React.useRef<((entry: { type: 'command' | 'response' | 'error' | 'agent' | 'agent-cmd'; content: string }) => void) | null>(null);
   const executeAgentCommandsRef = React.useRef<((commands: string[]) => Promise<{ cmd: string; success: boolean; message: string }[]>) | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   
 
   // Custom Hooks - State Management
@@ -72,6 +74,7 @@ export default function Simulator() {
     redo,
     copy,
     paste,
+    duplicate,
     saveToHistory,
   } = simulatorState;
 
@@ -641,20 +644,30 @@ export default function Simulator() {
       };
     }
 
-    // Viewport commands — handled here using the ReactFlow instance
-    if (parsed.type === 'zoom_in') {
-        .current?.zoomIn();
-      return { success: true, message: 'Zoomed in' };
-    }
-    if (parsed.type === 'zoom_out') {
-      reactFlowRef.current?.zoomOut();
-      return { success: true, message: 'Zoomed out' };
-    }
-    if (parsed.type === 'fit_view') {
-      reactFlowRef.current?.fitView({ padding: 0.2 });
-      return { success: true, message: 'Fit view' };
-    }
+    // Handle canvas resize commands
+if (command.trim() === 'zoom_in') {
+  reactFlowRef.current?.zoomIn();
+  return {
+    success: true,
+    message: 'Zoomed in',
+  };
+}
 
+if (command.trim() === 'zoom_out') {
+  reactFlowRef.current?.zoomOut();
+  return {
+    success: true,
+    message: 'Zoomed out',
+  };
+}
+
+if (command.trim() === 'fit_view') {
+  reactFlowRef.current?.fitView({ padding: 0.2 });
+  return {
+    success: true,
+    message: 'Canvas fitted to view',
+  };
+}
     // Get token from localStorage
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
@@ -703,8 +716,9 @@ export default function Simulator() {
     reactFlowRef,
     setEdges,
     saveToHistory,
+    setContextMenu,
   });
-  const { onNodeClick, onPaneClick, onEdgeClick, onConnect, onDragOver, onDrop } = nodeEvents;
+  const { onNodeClick, onPaneClick, onEdgeClick, onConnect, onDragOver, onDrop, onNodeContextMenu } = nodeEvents;
 
   // Custom Hooks - Keyboard Shortcuts
   useKeyboardShortcuts({
@@ -719,6 +733,7 @@ export default function Simulator() {
     redo,
     copy,
     paste,
+    duplicate,
     setSelectedNode,
     setSelectedNodes,
     setSelectedEdge,
@@ -879,6 +894,8 @@ export default function Simulator() {
             selectedDesignName={currentDesignName}
             onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
             isTerminalOpen={isTerminalOpen}
+            simulationParams={simulationParams}
+            nodes={nodes}
           />
 
           {/* CANVAS */}
@@ -893,6 +910,7 @@ export default function Simulator() {
             onPaneClick={onPaneClick}
             onDragOver={onDragOver}
             onDrop={onDrop}
+            onNodeContextMenu={onNodeContextMenu}
             reactFlowRef={reactFlowRef}
             handleSelectionStart={handleSelectionStart}
             handleSelectionMove={handleSelectionMove}
@@ -903,6 +921,16 @@ export default function Simulator() {
             isMinimapCollapsed={isMinimapCollapsed}
             setIsMinimapCollapsed={setIsMinimapCollapsed}
           />
+          {contextMenu && (
+            <NodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+              onDuplicate={duplicate}
+              onCopy={copy}
+              onDelete={() => deleteNode(contextMenu.id)}
+            />
+          )}
           
           {/* TERMINAL PANEL */}
           {isTerminalOpen && (

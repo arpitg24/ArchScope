@@ -356,6 +356,10 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
           { type: 'response', content: '  show_metrics [latency|throughput|errors]' },
           { type: 'response', content: '  show_bottlenecks' },
           { type: 'response', content: '  show_services [component_type] - List available cloud services' },
+          { type: 'response', content: 'Canvas:' },
+          { type: 'response', content: '  zoom_in - Zoom in on the canvas' },
+          { type: 'response', content: '  zoom_out - Zoom out on the canvas' },
+          { type: 'response', content: '  fit_view - Fit canvas to view' },
           { type: 'response', content: 'Preset:' },
           { type: 'response', content: '  load_preset <preset_name>' },
           { type: 'response', content: '  save_preset <preset_name> [as "<description>"]' },
@@ -886,6 +890,21 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
         return;
       }
 
+      // Handle canvas zoom/view commands locally
+      if (command === 'zoom_in' || command === 'zoom_out' || command === 'fit_view') {
+        if (onAQLCommand) {
+          const result = await onAQLCommand(rawCommand);
+          setLogs((prev) => [
+            ...prev,
+            { type: result.success ? 'response' : 'error', content: result.message },
+          ]);
+        } else {
+          setLogs((prev) => [...prev, { type: 'error', content: 'Error: Canvas commands not available' }]);
+        }
+        setShouldFocusInput(true);
+        return;
+      }
+
       // Handle simulation commands locally
       if (command.startsWith('sim_') || command === 'show_sim' || command === 'show_metrics' || command === 'show_bottlenecks') {
         if (onAQLCommand) {
@@ -1052,6 +1071,12 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
           </div>
         )}
 
+        {pendingDeleteConfirmation && (
+          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+            ⚠️ Confirm deletion: Type <span className="font-semibold">Y</span> to confirm or any other key to cancel
+          </div>
+        )}
+
         <div className="flex gap-2 items-center mt-1">
           <span className={`shrink-0 ${aiMode ? 'text-indigo-500' : 'text-green-600'}`}>{aiMode ? '~' : '>'}</span>
           <input
@@ -1075,7 +1100,11 @@ export default function TerminalPanel({ onClose, onAddComponent, onRemoveNode, o
               handleCommand(e);
             }}
             disabled={isProcessing}
+<<<<<<< HEAD
             placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : aiMode ? 'Describe what you want to build...' : ''}
+=======
+            placeholder={pendingDeleteConfirmation ? 'Type Y to confirm...' : ''}
+>>>>>>> caa4896530fa7fd17e571ddf82f1a1af7a3db3c1
             className="flex-1 bg-transparent outline-none text-gray-900 disabled:opacity-50 placeholder:text-gray-400"
             autoFocus
             autoComplete="off"
