@@ -778,7 +778,7 @@ if (command.trim() === 'fit_view') {
   );
 
   // Custom Hooks - Resizable Panels
-  const leftPanel = useResizable(256, 180, 480, false);
+  const leftPanel = useResizable(258, 180, 480, false);
   const rightPanel = useResizable(288, 220, 560, true);
   const terminalPanel = useResizable(288, 200, 600, true, 'vertical');
 
